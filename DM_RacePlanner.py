@@ -18,8 +18,7 @@ os.environ['PATH'] = os.environ['PATH'] + ";."
 from dmrp import dmrp
 
 # set up mySQL coonnection
-con = dmrp.pymysql.connect('22707.v.tld.pl', 'admin22707_raceplanner', 
-    '9AeG6fZ6l9', 'baza22707_raceplanner')
+con = dmrp.pymysql.connect('22707.v.tld.pl', 'admin22707_raceplanner', '9AeG6fZ6l9', 'baza22707_raceplanner')
 cur = con.cursor()
 
 # compound
@@ -76,10 +75,13 @@ def acUpdate(deltaT):
 		last_lap = ac.getCarState(0, acsys.CS.LastLap)
 		
 		# upload lap to the databse
-		sql = "INSERT INTO `SessionData` (`lap`, `track`, `driver`, `car`, `time`, `pit`, `laptime`, `compound`, `valid`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-		cur.execute(sql, (lapnumber, track_name, driver_name, car, dt, current_lap_inpit, last_lap, compound, lap_valid))
-		con.commit()
-		
+		try:
+			sql = "INSERT INTO `SessionData` (`lap`, `track`, `driver`, `car`, `time`, `pit`, `laptime`, `compound`, `valid`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+			cur.execute(sql, (lapnumber, track_name, driver_name, car, dt, current_lap_inpit, last_lap, compound, lap_valid))
+			con.commit()
+		except:
+			ac.console('db connection error')
+				
 		current_lap_inpit = 0
 		current_inpit = 0
 		lap_valid = 1
