@@ -17,10 +17,6 @@ os.environ['PATH'] = os.environ['PATH'] + ";."
 
 from dmrp import dmrp
 
-# set up mySQL coonnection
-con = dmrp.pymysql.connect('22707.v.tld.pl', 'admin22707_raceplanner', '9AeG6fZ6l9', 'baza22707_raceplanner')
-cur = con.cursor()
-
 # compound
 compound = 'NA'
 
@@ -42,12 +38,20 @@ driver_name = ac.getDriverName(0)
 track_name = ac.getTrackName(0)
 car = ac.getCarName(0)
 
+# prepare empty lists
+time_list = []
+lap_list = []
+pit_list = []
+laptime_list = []
+compound_list = []
+valid_list = []
+
 def acMain(ac_version):
 	
 	return "DM Race Planner"
 	
 def acUpdate(deltaT):
-	global current_inpit, lapnumber, current_lap_inpit, con, cur, compound, lap_valid
+	global current_inpit, lapnumber, current_lap_inpit, compound, lap_valid, time_list, lap_list, pit_list, laptime_list, compound_list, valid_list
 	
 	# invalidate lap when more than 2 tyres off the track
 	if dmrp.info.physics.numberOfTyresOut > 2:
@@ -73,15 +77,43 @@ def acUpdate(deltaT):
 		dt = time.strftime('%Y%m%d%H%M%S', time.localtime())
 		lapnumber = lap
 		last_lap = ac.getCarState(0, acsys.CS.LastLap)
-		
-		# upload lap to the databse
-		try:
-			sql = "INSERT INTO `SessionData` (`lap`, `track`, `driver`, `car`, `time`, `pit`, `laptime`, `compound`, `valid`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-			cur.execute(sql, (lapnumber, track_name, driver_name, car, dt, current_lap_inpit, last_lap, compound, lap_valid))
-			con.commit()
-		except:
-			ac.console('db connection error')
-				
+
+		# update lists
+		time_list.append(dt)
+		lap_list.append(lapnumber)
+		pit_list.append(current_lap_inpit)
+		laptime_list.append(last_lap)
+		compound_list.append(compound)
+		valid_list.append(lap_valid)
+
+		insert_rows = len(lap_list)
+		ac.console(str(insert_rows))
+			
 		current_lap_inpit = 0
 		current_inpit = 0
 		lap_valid = 1
+
+def acShutdown():
+	global track_name, driver_name, car, time_list, lap_list, pit_list, laptime_list, compound_list, valid_list
+
+	# set up mySQL connection
+	con = dmrp.pymysql.connect('22707.v.tld.pl', 'admin22707_raceplanner', '9AeG6fZ6l9', 'baza22707_raceplanner')
+	cur = con.cursor()
+
+	insert_rows = len(lap_list) 
+
+	# upload lap to the database
+	for i in range(insert_rows):
+		try:
+			sql = "INSERT INTO `SessionData` (`lap`, `track`, `driver`, `car`, `time`, `pit`, `laptime`, `compound`, `valid`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+			cur.execute(sql, (lap_list[i], track_name, driver_name, car, time_list[i], pit_list[i], laptime_list[i], compound_list[i], valid_list[i]))
+			con.commit()
+		except:
+
+			# export data frame if error occurs
+			with open('error.csv', 'w', newline = '') as csvfile:
+				writer = csv.DictWriter(csvfile, fieldnames = ['lap', 'track', 'driver', 'car', 'time', 'pit', 'laptime', 'compound', 'valid'], delimiter = ';')
+				writer.writeheader()
+				for row in range(insert_rows):
+					writer.writerow({'lap': lap_list[row], 'track': track_name, 'driver': driver_name, 'car': car, 'time': time_list[row],
+					 'pit': pit_list[row], 'laptime': laptime_list[row], 'compound': compound_list[row], 'valid': valid_list[row]})
