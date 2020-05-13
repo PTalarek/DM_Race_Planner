@@ -38,6 +38,9 @@ driver_name = ac.getDriverName(0)
 track_name = ac.getTrackName(0)
 car = ac.getCarName(0)
 
+# file name
+file_name = time.strftime('%Y%m%d%H%M%S', time.localtime()) + "_" + driver_name + "_" + track_name + ".csv"
+
 # prepare empty lists
 time_list = []
 lap_list = []
@@ -85,35 +88,34 @@ def acUpdate(deltaT):
 		laptime_list.append(last_lap)
 		compound_list.append(compound)
 		valid_list.append(lap_valid)
-
-		insert_rows = len(lap_list)
-		ac.console(str(insert_rows))
 			
 		current_lap_inpit = 0
 		current_inpit = 0
 		lap_valid = 1
 
 def acShutdown():
-	global track_name, driver_name, car, time_list, lap_list, pit_list, laptime_list, compound_list, valid_list
-
-	# set up mySQL connection
-	con = dmrp.pymysql.connect('22707.v.tld.pl', 'admin22707_raceplanner', '9AeG6fZ6l9', 'baza22707_raceplanner')
-	cur = con.cursor()
+	global track_name, driver_name, car, file_name, time_list, lap_list, pit_list, laptime_list, compound_list, valid_list
 
 	insert_rows = len(lap_list) 
 
-	# upload lap to the database
-	for i in range(insert_rows):
-		try:
+	try:
+		# set up mySQL connection
+		con = dmrp.pymysql.connect('22707.v.tld.pl', 'admin22707_raceplanner', '9AeG6fZ6l9', 'baza22707_raceplanner')
+		cur = con.cursor()
+
+		# upload lap to the database
+		for i in range(insert_rows):
+		
 			sql = "INSERT INTO `SessionData` (`lap`, `track`, `driver`, `car`, `time`, `pit`, `laptime`, `compound`, `valid`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
 			cur.execute(sql, (lap_list[i], track_name, driver_name, car, time_list[i], pit_list[i], laptime_list[i], compound_list[i], valid_list[i]))
 			con.commit()
-		except:
-
-			# export data frame if error occurs
-			with open('error.csv', 'w', newline = '') as csvfile:
-				writer = csv.DictWriter(csvfile, fieldnames = ['lap', 'track', 'driver', 'car', 'time', 'pit', 'laptime', 'compound', 'valid'], delimiter = ';')
-				writer.writeheader()
-				for row in range(insert_rows):
-					writer.writerow({'lap': lap_list[row], 'track': track_name, 'driver': driver_name, 'car': car, 'time': time_list[row],
-					 'pit': pit_list[row], 'laptime': laptime_list[row], 'compound': compound_list[row], 'valid': valid_list[row]})
+		con.close()
+	
+	except:
+		# export csv locally if error occurs
+		with open(file_name, 'w', newline = '') as csvfile:
+			writer = csv.DictWriter(csvfile, fieldnames = ['lap', 'track', 'driver', 'car', 'time', 'pit', 'laptime', 'compound', 'valid'], delimiter = ';')
+			writer.writeheader()
+			for row in range(insert_rows):
+				writer.writerow({'lap': lap_list[row], 'track': track_name, 'driver': driver_name, 'car': car, 'time': time_list[row], 
+				'pit': pit_list[row], 'laptime': laptime_list[row], 'compound': compound_list[row], 'valid': valid_list[row]})
