@@ -30,7 +30,10 @@ current_inpit = 0
 current_lap_inpit = 0
 
 # current lap number
-lapnumber = 0
+lapnumber = ac.getCarState(0, acsys.CS.LapCount)
+
+# last lap time
+last_lap = 0
 
 # current date and file name
 now = datetime.date.today()
@@ -41,7 +44,10 @@ car = ac.getCarName(0)
 # file name
 file_name = time.strftime('%Y%m%d%H%M%S', time.localtime()) + "_" + driver_name + "_" + track_name + ".csv"
 
-# prepare empty lists
+# get lap time on this lap
+get_laptime = 0
+
+# initiate empty lists
 time_list = []
 lap_list = []
 pit_list = []
@@ -54,7 +60,7 @@ def acMain(ac_version):
 	return "DM Race Planner"
 	
 def acUpdate(deltaT):
-	global current_inpit, lapnumber, current_lap_inpit, compound, lap_valid, time_list, lap_list, pit_list, laptime_list, compound_list, valid_list
+	global current_inpit, lapnumber, current_lap_inpit, compound, lap_valid, time_list, lap_list, pit_list, laptime_list, compound_list, valid_list, last_lap, get_laptime
 	
 	# invalidate lap when more than 2 tyres off the track
 	if dmrp.info.physics.numberOfTyresOut > 2:
@@ -79,19 +85,29 @@ def acUpdate(deltaT):
 	if lap != lapnumber:
 		dt = time.strftime('%Y%m%d%H%M%S', time.localtime())
 		lapnumber = lap
-		last_lap = ac.getCarState(0, acsys.CS.LastLap)
 
+		get_laptime = 1
+		
 		# update lists
 		time_list.append(dt)
 		lap_list.append(lapnumber)
 		pit_list.append(current_lap_inpit)
-		laptime_list.append(last_lap)
 		compound_list.append(compound)
 		valid_list.append(lap_valid)
-			
+				
 		current_lap_inpit = 0
 		current_inpit = 0
 		lap_valid = 1
+
+	# get last lap time after 1 second
+	curent_laptime = ac.getCarState(0, acsys.CS.LapTime)
+	if curent_laptime > 1000 and get_laptime == 1:
+		last_lap = ac.getCarState(0, acsys.CS.LastLap)
+
+		# update laptime list
+		laptime_list.append(last_lap)
+
+		get_laptime = 0
 
 def acShutdown():
 	global track_name, driver_name, car, file_name, time_list, lap_list, pit_list, laptime_list, compound_list, valid_list
